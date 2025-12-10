@@ -1,11 +1,11 @@
 # Eduplus Archive SDK
 
-A PHP SDK for interacting with the Eduplus Archive API - Student Result Archive System.
+A PHP SDK for interacting with the Eduplus Archive API - Student Result Archive System. Built with Guzzle HTTP for reliable and modern HTTP communication.
 
 ## Requirements
 
 - PHP 7.2 or higher
-- cURL extension enabled
+- Guzzle HTTP 6.5+ or 7.0+ (automatically installed via Composer)
 
 ## Installation
 
@@ -14,6 +14,15 @@ Install via Composer:
 ```bash
 composer require eduplus/archive
 ```
+
+## Features
+
+- **Modern HTTP Client**: Built with Guzzle HTTP for reliable communication
+- **Fluent Interface**: Chainable method calls for clean, readable code
+- **Comprehensive Error Handling**: Detailed error messages for debugging
+- **File Upload Support**: Both URL-based and direct file uploads
+- **Search Functionality**: Flexible filtering with multiple parameters
+- **PHP 7.2+ Compatible**: Works with both Guzzle 6.5+ and 7.0+
 
 ## Quick Start
 
@@ -241,14 +250,24 @@ Returns array of result objects with the following structure:
 
 ## Error Handling
 
-The SDK provides detailed error messages for various scenarios:
+The SDK never throws exceptions and handles all errors gracefully:
 
+### Upload Method
+- **Success**: Returns `"done"`
+- **Failure**: Returns descriptive error message string
+
+### Search Method  
+- **Success**: Returns array of results
+- **No Results**: Returns empty array `[]`
+- **Error**: Returns empty array `[]` (never returns error strings for search)
+
+### Common Error Messages
 - **API Key Missing**: "API key is required. Use setApiKey() first."
 - **Missing Required Fields**: "Field 'branch' is required."
 - **Invalid Students Data**: "Students must be a non-empty array."
 - **File Not Found**: "PDF file not found: /path/to/file.pdf"
 - **File Too Large**: "PDF file size must be less than 10MB."
-- **Network Errors**: "cURL Error: ..." or "HTTP Error: 404"
+- **Network Errors**: "Connection Error: ..." or "HTTP Error: 404"
 
 ## Examples
 

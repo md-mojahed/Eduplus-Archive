@@ -2,6 +2,11 @@
 
 namespace Eduplus;
 
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\MultipartStream;
+
 /**
  * Eduplus Archive SDK
  * 
@@ -40,6 +45,26 @@ class EduplusArchive
      * @var string
      */
     private $pdfPath;
+
+    /**
+     * Guzzle HTTP Client
+     * 
+     * @var Client
+     */
+    private $httpClient;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->httpClient = new Client([
+            'timeout' => 360,
+            'connect_timeout' => 10,
+            'verify' => false, // For development, set to true in production
+            'http_errors' => false, // Handle HTTP errors manually
+        ]);
+    }
 
     /**
      * Set the API key
@@ -123,16 +148,12 @@ class EduplusArchive
             }
         }
 
-        try {
-            if ($this->pdfPath) {
-                return $this->uploadWithFile($data);
-            } elseif ($this->pdfUrl) {
-                return $this->uploadWithUrl($data);
-            } else {
-                return 'Either pdfUrl() or pdfPath() must be called before upload().';
-            }
-        } catch (\Exception $e) {
-            return 'Upload failed: ' . $e->getMessage();
+        if ($this->pdfPath) {
+            return $this->uploadWithFile($data);
+        } elseif ($this->pdfUrl) {
+            return $this->uploadWithUrl($data);
+        } else {
+            return 'Either pdfUrl() or pdfPath() must be called before upload().';
         }
     }
 
@@ -140,7 +161,7 @@ class EduplusArchive
      * Search for results
      * 
      * @param array $filters
-     * @return array Returns array of results on success, empty array if no results
+     * @return array Returns array of results on success, empty array if no results or on error
      */
     public function search($filters = [])
     {
@@ -152,20 +173,22 @@ class EduplusArchive
             return [];
         }
 
-        try {
-            $queryString = http_build_query($filters);
-            $url = self::$baseUrl . '/api/archive/search?' . $queryString;
+        $url = self::$baseUrl . '/api/archive/search';
 
-            $response = $this->makeRequest('GET', $url);
+        $response = $this->makeRequest('GET', $url, [
+            'query' => $filters
+        ]);
 
-            if ($response && isset($response['status']) && $response['status'] === 'success') {
-                return isset($response['data']['results']) ? $response['data']['results'] : [];
-            }
-
-            return [];
-        } catch (\Exception $e) {
+        // If response is a string (error), return empty array for search
+        if (is_string($response)) {
             return [];
         }
+
+        if ($response && isset($response['status']) && $response['status'] === 'success') {
+            return isset($response['data']['results']) ? $response['data']['results'] : [];
+        }
+
+        return [];
     }
 
     /**
@@ -179,7 +202,14 @@ class EduplusArchive
         $data['result_file'] = $this->pdfUrl;
         
         $url = self::$baseUrl . '/api/archive/upload';
-        $response = $this->makeRequest('POST', $url, $data, ['Content-Type: application/json']);
+        $response = $this->makeRequest('POST', $url, [
+            'json' => $data
+        ]);
+
+        // If response is a string (error), return it directly
+        if (is_string($response)) {
+            return $response;
+        }
 
         if ($response && isset($response['status']) && $response['status'] === 'success') {
             return 'done';
@@ -219,6 +249,11 @@ class EduplusArchive
         $url = self::$baseUrl . '/api/archive/upload-file';
         $response = $this->makeMultipartRequest($url, $data, $this->pdfPath);
 
+        // If response is a string (error), return it directly
+        if (is_string($response)) {
+            return $response;
+        }
+
         if ($response && isset($response['status']) && $response['status'] === 'success') {
             return 'done';
         }
@@ -227,126 +262,134 @@ class EduplusArchive
     }
 
     /**
-     * Make HTTP request
+     * Make HTTP request using Guzzle
      * 
      * @param string $method
      * @param string $url
-     * @param array $data
-     * @param array $headers
-     * @return array|null
+     * @param array $options
+     * @return array|string Returns array on success, error string on failure
      */
-    private function makeRequest($method, $url, $data = null, $headers = [])
+    private function makeRequest($method, $url, $options = [])
     {
-        $ch = curl_init();
+        try {
+            // Set default headers
+            $defaultOptions = [
+                'headers' => [
+                    'x-api-key' => self::$apiKey,
+                ]
+            ];
 
-        // Default headers
-        $defaultHeaders = [
-            'x-api-key: ' . self::$apiKey,
-            'User-Agent: EduplusArchive-SDK/1.0.0'
-        ];
+            // Merge options
+            $requestOptions = array_merge_recursive($defaultOptions, $options);
 
-        $allHeaders = array_merge($defaultHeaders, $headers);
-
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_HTTPHEADER => $allHeaders,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-        ]);
-
-        if ($method === 'POST' && $data) {
-            curl_setopt($ch, CURLOPT_POST, true);
-            if (in_array('Content-Type: application/json', $headers)) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            } else {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            $response = $this->httpClient->request($method, $url, $requestOptions);
+            
+            // Check for HTTP errors
+            $statusCode = $response->getStatusCode();
+            if ($statusCode >= 400) {
+                return 'HTTP Error: ' . $statusCode;
             }
+            
+            $body = $response->getBody()->getContents();
+            $decoded = json_decode($body, true);
+            
+            // Return decoded JSON or error message if JSON is invalid
+            return $decoded !== null ? $decoded : 'Invalid JSON response from server';
+
+        } catch (RequestException $e) {
+            if ($e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                return 'HTTP Error: ' . $statusCode;
+            }
+            return 'Request Error: ' . $e->getMessage();
+        } catch (ConnectException $e) {
+            return 'Connection Error: ' . $e->getMessage();
+        } catch (\Exception $e) {
+            return 'Request failed: ' . $e->getMessage();
         }
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($error) {
-            throw new \Exception('cURL Error: ' . $error);
-        }
-
-        if ($httpCode >= 400) {
-            throw new \Exception('HTTP Error: ' . $httpCode);
-        }
-
-        return json_decode($response, true);
     }
 
     /**
-     * Make multipart request for file upload
+     * Make multipart request for file upload using Guzzle
      * 
      * @param string $url
      * @param array $data
      * @param string $filePath
-     * @return array|null
+     * @return array|string Returns array on success, error string on failure
      */
     private function makeMultipartRequest($url, $data, $filePath)
     {
-        $ch = curl_init();
-
-        // Prepare multipart data
-        $postData = [];
-        
-        // Add regular fields
-        foreach ($data as $key => $value) {
-            if ($key === 'students') {
-                // Handle students array
-                foreach ($value as $index => $student) {
-                    foreach ($student as $studentKey => $studentValue) {
-                        $postData["students[{$index}][{$studentKey}]"] = $studentValue;
-                    }
-                }
-            } else {
-                $postData[$key] = $value;
+        try {
+            // Check if file can be opened
+            $fileHandle = fopen($filePath, 'r');
+            if ($fileHandle === false) {
+                return 'Cannot open file for reading: ' . $filePath;
             }
+
+            // Prepare multipart data
+            $multipart = [];
+            
+            // Add regular fields
+            foreach ($data as $key => $value) {
+                if ($key === 'students') {
+                    // Handle students array
+                    foreach ($value as $index => $student) {
+                        foreach ($student as $studentKey => $studentValue) {
+                            $multipart[] = [
+                                'name' => "students[{$index}][{$studentKey}]",
+                                'contents' => $studentValue
+                            ];
+                        }
+                    }
+                } else {
+                    $multipart[] = [
+                        'name' => $key,
+                        'contents' => $value
+                    ];
+                }
+            }
+
+            // Add file
+            $multipart[] = [
+                'name' => 'result_file',
+                'contents' => $fileHandle,
+                'filename' => basename($filePath),
+                'headers' => [
+                    'Content-Type' => 'application/pdf'
+                ]
+            ];
+
+            $response = $this->httpClient->request('POST', $url, [
+                'multipart' => $multipart,
+                'timeout' => 60, // Longer timeout for file uploads
+                'headers' => [
+                    'x-api-key' => self::$apiKey,
+                    'User-Agent' => 'EduplusArchive-SDK/1.0.0'
+                ]
+            ]);
+            
+            // Check for HTTP errors
+            $statusCode = $response->getStatusCode();
+            if ($statusCode >= 400) {
+                return 'HTTP Error: ' . $statusCode;
+            }
+            
+            $body = $response->getBody()->getContents();
+            $decoded = json_decode($body, true);
+            
+            // Return decoded JSON or error message if JSON is invalid
+            return $decoded !== null ? $decoded : 'Invalid JSON response from server';
+
+        } catch (RequestException $e) {
+            if ($e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                return 'HTTP Error: ' . $statusCode;
+            }
+            return 'Request Error: ' . $e->getMessage();
+        } catch (ConnectException $e) {
+            return 'Connection Error: ' . $e->getMessage();
+        } catch (\Exception $e) {
+            return 'File upload failed: ' . $e->getMessage();
         }
-
-        // Add file
-        if (class_exists('CURLFile')) {
-            $postData['result_file'] = new \CURLFile($filePath, 'application/pdf', basename($filePath));
-        } else {
-            // Fallback for older PHP versions
-            $postData['result_file'] = '@' . $filePath . ';type=application/pdf';
-        }
-
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60, // Longer timeout for file uploads
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postData,
-            CURLOPT_HTTPHEADER => [
-                'x-api-key: ' . self::$apiKey,
-                'User-Agent: EduplusArchive-SDK/1.0.0'
-            ],
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($error) {
-            throw new \Exception('cURL Error: ' . $error);
-        }
-
-        if ($httpCode >= 400) {
-            throw new \Exception('HTTP Error: ' . $httpCode);
-        }
-
-        return json_decode($response, true);
     }
 }
