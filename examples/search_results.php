@@ -6,10 +6,6 @@ use Eduplus\EduplusArchive;
 
 // Configuration
 $apiKey = 'your-institution-api-key';
-$baseUrl = 'https://archive.yourdomain.com';
-
-// Set base URL (optional, defaults to localhost:8000)
-EduplusArchive::setBaseUrl($baseUrl);
 
 echo "🚀 Eduplus Archive SDK - Search Results Example\n";
 echo "===============================================\n\n";

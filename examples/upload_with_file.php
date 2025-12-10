@@ -6,11 +6,7 @@ use Eduplus\EduplusArchive;
 
 // Configuration
 $apiKey = 'your-institution-api-key';
-$baseUrl = 'https://archive.yourdomain.com';
 $pdfFilePath = '/absolute/path/to/your/result.pdf'; // Update this path
-
-// Set base URL (optional, defaults to localhost:8000)
-EduplusArchive::setBaseUrl($baseUrl);
 
 echo "🚀 Eduplus Archive SDK - Upload with File Example\n";
 echo "=================================================\n\n";
