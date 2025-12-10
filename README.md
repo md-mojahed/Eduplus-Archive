@@ -33,9 +33,8 @@ require_once 'vendor/autoload.php';
 
 use Eduplus\EduplusArchive;
 
-// Set your API key and base URL
+// Set your API key
 EduplusArchive::setApiKey('your-api-key-here');
-EduplusArchive::setBaseUrl('https://your-domain.com'); // Optional, defaults to localhost:8000
 ```
 
 ## Usage
@@ -166,10 +165,7 @@ if (count($results)) {
 ### Configuration Methods
 
 #### `setApiKey(string $apiKey): EduplusArchive`
-Set the API key for authentication.
-
-#### `setBaseUrl(string $baseUrl): void`
-Set the base URL for the API (optional, defaults to localhost:8000).
+Set the API key for authentication. The SDK connects to `https://archive.eduplus-bd.com` by default.
 
 ### Upload Methods
 
@@ -284,8 +280,6 @@ use Eduplus\EduplusArchive;
 $apiKey = 'your-institution-api-key';
 $baseUrl = 'https://archive.yourdomain.com';
 
-EduplusArchive::setBaseUrl($baseUrl);
-
 // Upload with URL
 $result = EduplusArchive::setApiKey($apiKey)
     ->pdfUrl('https://example.com/results/class10-final.pdf')
@@ -335,7 +329,7 @@ use Eduplus\EduplusArchive;
 
 // Configuration
 $apiKey = 'your-institution-api-key';
-EduplusArchive::setBaseUrl('https://archive.yourdomain.com');
+
 
 // Search for a specific student
 $studentResults = EduplusArchive::setApiKey($apiKey)

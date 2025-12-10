@@ -30,7 +30,7 @@ class EduplusArchive
      * 
      * @var string
      */
-    private static $baseUrl = 'http://localhost:8000';
+    private static $baseUrl = 'https://archive.eduplus-bd.com';
 
     /**
      * PDF URL for upload
@@ -78,16 +78,7 @@ class EduplusArchive
         return new self();
     }
 
-    /**
-     * Set the base URL for the API
-     * 
-     * @param string $baseUrl
-     * @return void
-     */
-    public static function setBaseUrl($baseUrl)
-    {
-        self::$baseUrl = rtrim($baseUrl, '/');
-    }
+
 
     /**
      * Set PDF URL for upload
@@ -364,7 +355,6 @@ class EduplusArchive
                 'timeout' => 60, // Longer timeout for file uploads
                 'headers' => [
                     'x-api-key' => self::$apiKey,
-                    'User-Agent' => 'EduplusArchive-SDK/1.0.0'
                 ]
             ]);
             
