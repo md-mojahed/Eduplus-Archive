@@ -2,7 +2,7 @@
 
 require_once '../vendor/autoload.php';
 
-use Eduplus\Archive\EduplusArchive;
+use Eduplus\EduplusArchive;
 
 // Configuration
 $apiKey = 'your-institution-api-key';
