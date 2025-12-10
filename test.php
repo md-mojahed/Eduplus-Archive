@@ -3,13 +3,13 @@
 // Simple test to verify the SDK is working
 require_once 'vendor/autoload.php';
 
-use Eduplus\Archive\EduplusArchive;
+use Eduplus\EduplusArchive;
 
 echo "🧪 Eduplus Archive SDK - Basic Test\n";
 echo "===================================\n\n";
 
 // Test 1: Check if class exists
-if (class_exists('Eduplus\Archive\EduplusArchive')) {
+if (class_exists('Eduplus\EduplusArchive')) {
     echo "✅ EduplusArchive class loaded successfully\n";
 } else {
     echo "❌ EduplusArchive class not found\n";
