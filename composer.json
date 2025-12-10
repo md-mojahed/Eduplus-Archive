@@ -1,0 +1,32 @@
+{
+    "name": "eduplus/archive",
+    "description": "PHP SDK for Eduplus Archive - Student Archive System",
+    "type": "library",
+    "keywords": [
+        "eduplus",
+        "archive",
+        "student",
+        "result",
+        "pdf",
+        "api",
+        "sdk"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Md Mojahedul Islam",
+            "email": "dev.mojahedul@gmail.com",
+            "homepage": "https://md-mojahed.github.io"
+        }
+    ],
+    "require": {
+        "php": ">=7.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Eduplus\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
